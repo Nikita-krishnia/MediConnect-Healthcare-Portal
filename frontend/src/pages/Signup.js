@@ -1,0 +1,106 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+import './Signup.css';
+import { useNavigate } from 'react-router-dom';
+
+const Signup = () => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [role, setRole] = useState('patient');
+
+    const [fullName, setFullName] = useState('');
+    const [specialty, setSpecialty] = useState('');
+
+    const navigate = useNavigate();
+
+    const handleSignup = async (e) => {
+        e.preventDefault();
+        try {
+            // point this to Node.js server port
+            const res = await axios.post('http://localhost:5000/api/signup', {
+                email,
+                password,
+                role,
+                fullName,
+                specialty
+            });
+            
+            alert(res.data.message);
+            navigate('/login'); // Redirect to login page after successful signup
+        } catch (err) {
+            alert(err.response?.data?.message || "Signup failed");
+        }
+    };
+
+    return (
+        <div className="signup-container">
+            <div className="signup-card">
+                <h2 className="signup-title">Healthcare Portal Signup</h2>
+                <form className="signup-form" onSubmit={handleSignup}>
+                    <div className="form-group">
+                        <label className="form-label">Email:</label>
+                        <input 
+                            className="signup-input"
+                            type="email" 
+                            required 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)} 
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Password:</label>
+                        <input 
+                            className="signup-input"
+                            type="password" 
+                            required 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)} 
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">I am a:</label>
+                        <select 
+                            className="signup-select"
+                            value={role} 
+                            onChange={(e) => setRole(e.target.value)}
+                        >
+                            <option value="patient">Patient</option>
+                            <option value="doctor">Doctor</option>
+                        </select>
+                    </div>
+
+                        {role === 'doctor' && (
+                            <div className="doctor-fields">
+                                <div className="form-group">
+                                    <label className="form-label">Full Name:</label>
+                                    <input 
+                                        className="signup-input"
+                                        type="text" 
+                                        placeholder="Dr. John Doe" 
+                                        required 
+                                        value={fullName}
+                                        onChange={(e) => setFullName(e.target.value)} 
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Specialty:</label>
+                                    <input 
+                                        className="signup-input"
+                                        type="text" 
+                                        placeholder="e.g. Cardiologist" 
+                                        required 
+                                        value={specialty}
+                                        onChange={(e) => setSpecialty(e.target.value)} 
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        
+                        <button className="signup-button" type="submit">Register</button>
+                    </form>
+                </div>
+            </div>
+        );
+};
+
+export default Signup;
