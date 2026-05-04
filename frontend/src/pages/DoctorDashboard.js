@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import './DoctorDashboard.css';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
+import API from '../api';
 
 const DoctorDashboard = () => {
     const [appointments, setAppointments] = useState([]);
@@ -17,12 +17,12 @@ const DoctorDashboard = () => {
             if (!user) return;
             try {
                 // 1. Fetch Appointments
-                const apptRes = await axios.get(`http://localhost:5000/api/appointments/doctor/${user.id}`);
+                const apptRes = await API.get(`/appointments/doctor/${user.id}`);
                 // Ensure we set the state immediately so the "Today" stats can calculate
                 setAppointments(apptRes.data);
 
                 // 2. Fetch Schedule - UPDATED URL to match new server.js route
-                const availRes = await axios.get(`http://localhost:5000/api/availability/user/${user.id}`);
+                const availRes = await API.get(`/availability/user/${user.id}`);
 
                 const daysOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -44,7 +44,7 @@ const DoctorDashboard = () => {
     const updateStatus = async (appointmentId, newStatus) => {
         try {
             const noteText = consultationNotes[appointmentId] || "";
-            await axios.put(`http://localhost:5000/api/appointments/${appointmentId}`, {
+            await API.put(`/appointments/${appointmentId}`, {
                 status: newStatus,
                 consultation_notes: noteText
             });
@@ -60,7 +60,7 @@ const DoctorDashboard = () => {
 
     const handleSetAvailability = async () => {
         try {
-            await axios.post('http://localhost:5000/api/availability', {
+            await API.post('/availability', {
                 doctorId: user.id, // This is the logged-in user's ID
                 day: availability.day,
                 startTime: availability.start,
@@ -70,7 +70,7 @@ const DoctorDashboard = () => {
             alert("Schedule updated!");
 
             // FIXED: Updated URL to include '/user/' to match the new server.js route
-            const res = await axios.get(`http://localhost:5000/api/availability/user/${user.id}`);
+            const res = await API.get(`/availability/user/${user.id}`);
 
             // Optional: Re-sort the data so it stays in Monday-Sunday order
             const daysOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -89,7 +89,7 @@ const DoctorDashboard = () => {
     const handleDeleteAvailability = async (availabilityId) => {
         if (window.confirm("Are you sure you want to remove these hours?")) {
             try {
-                await axios.delete(`http://localhost:5000/api/availability/${availabilityId}`);
+                await API.delete(`/availability/${availabilityId}`);
 
                 // Update the local list by filtering out the deleted ID
                 setSchedule(prevSchedule =>

@@ -1,28 +1,39 @@
 import React from "react";
-import {useNavigate} from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom"; // Added Link
 import "./Navbar.css";
 
-const Navbar=()=>{
-    const navigate=useNavigate();
-    const user=JSON.parse(localStorage.getItem('user'));
+const Navbar = () => {
+    const navigate = useNavigate();
+    const user = JSON.parse(localStorage.getItem('user'));
 
-    const handleLogout=()=>{
+    const handleLogout = () => {
         localStorage.removeItem('user');
         navigate('/login');
         window.location.reload();
     };
 
-    if(!user) return null;
-
-    return(
+    return (
         <nav className="navbar">
-            <h2 className="navbar-logo">MediConnect✨</h2>
+            {/* The logo should always be visible and link to home */}
+            <h2 className="navbar-logo" onClick={() => navigate('/')} style={{cursor: 'pointer'}}>
+                MediConnect✨
+            </h2>
 
             <div className="navbar-links">
-                <span>logged in as:<strong>{user.email}</strong></span>
-                <button className="logout-btn" onClick={handleLogout}>
-                    Logout
-                </button>
+                {user ? (
+                    <>
+                        <span>Logged in as: <strong>{user.email}</strong></span>
+                        <button className="logout-btn" onClick={handleLogout}>
+                            Logout
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        {/* Show these when NO one is logged in */}
+                        <Link to="/" className="nav-link">Login</Link>
+                        <Link to="/signup" className="nav-link" style={{ marginLeft: '15px' }}>Sign Up</Link>
+                    </>
+                )}
             </div>
         </nav>
     );

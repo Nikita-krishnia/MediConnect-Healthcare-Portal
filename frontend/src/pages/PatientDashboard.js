@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from 'react';
 import './PatientDashboard.css';
+import API from '../api';
 
 const PatientDashboard = () => {
     const [doctors, setDoctors] = useState([]);
@@ -13,29 +13,28 @@ const PatientDashboard = () => {
 
     const [selectedDoctorAvailability, setSelectedDoctorAvailability] = useState([]);
 
-    // Function to fetch all data - pulled out so we can reuse it
-    const fetchData = async () => {
-        try {
-            const doctorsRes = await axios.get('http://localhost:5000/api/doctors');
-            setDoctors(doctorsRes.data);
+// useCallback ensures the function doesn't change on every render
+const fetchData = useCallback(async () => {
+    try {
+        const doctorsRes = await API.get('/doctors');
+        setDoctors(doctorsRes.data);
 
-            const appointmentsRes = await axios.get(`http://localhost:5000/api/appointments/patient/${user.id}`);
-            setMyAppointments(appointmentsRes.data);
-        } catch (err) {
-            console.error("Error fetching data:", err);
-        }
-    };
+        const appointmentsRes = await API.get(`/appointments/patient/${user.id}`);
+        setMyAppointments(appointmentsRes.data);
+    } catch (err) {
+        console.error("Error fetching data:", err);
+    }
+}, [user?.id]); // It only recreates if the user ID changes
 
-    useEffect(() => {
-        if (user) fetchData();
-    }, [user]);
-
+useEffect(() => {
+    if (user) fetchData();
+}, [user, fetchData]); // Both are now stable dependencies
 
     const handleBook = async (doctorId) => {
         if (!selectedDate) return alert("Please select a date!");
 
         try {
-            const res = await axios.get(`http://localhost:5000/api/availability/${doctorId}`);
+            const res = await API.get(`/availability/${doctorId}`);
             const currentAvailability = res.data;
 
             // FIXED: Split string to avoid timezone shifting
@@ -54,7 +53,7 @@ const PatientDashboard = () => {
             }
 
             // Proceed with booking...
-            await axios.post('http://localhost:5000/api/appointments', {
+            await API.post('/appointments', {
                 patientId: user.id,
                 doctorId: doctorId,
                 appointmentDate: selectedDate,
@@ -74,7 +73,7 @@ const PatientDashboard = () => {
     const handleCancel = async (id) => {
         if (window.confirm("Are you sure you want to cancel this appointment?")) {
             try {
-                await axios.delete(`http://localhost:5000/api/appointments/${id}`);
+                await API.delete(`/appointments/${id}`);
                 alert("Cancelled successfully");
                 fetchData(); // Refresh list smoothly
             } catch (err) { alert("Error cancelling"); }
@@ -89,7 +88,7 @@ const PatientDashboard = () => {
 
     const fetchDoctorAvailability = async (doctorId) => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/availability/${doctorId}`);
+            const res = await API.get(`/availability/${doctorId}`);
             setSelectedDoctorAvailability(res.data);
         } catch (err) {
             console.error("Error fetching availability:", err);

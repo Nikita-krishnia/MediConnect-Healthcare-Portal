@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import './Signup.css';
 import { useNavigate } from 'react-router-dom';
+import API from '../api';
 
 const Signup = () => {
     const [email, setEmail] = useState('');
@@ -17,7 +17,7 @@ const Signup = () => {
         e.preventDefault();
         try {
             // point this to Node.js server port
-            const res = await axios.post('http://localhost:5000/api/signup', {
+            const res = await API.post('/signup', {
                 email,
                 password,
                 role,

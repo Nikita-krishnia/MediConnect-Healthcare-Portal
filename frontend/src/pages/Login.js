@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import './Login.css';
+import API from '../api';
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const Login = () => {
     // 1. Define the state to store what the user types
@@ -13,7 +14,7 @@ const Login = () => {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:5000/api/login', { email, password });
+            const res = await API.post('/login', { email, password });
             
             // The backend sent back the role!
             const userRole = res.data.user.role;
@@ -55,7 +56,7 @@ const Login = () => {
                     <button className="login-button" type="submit">Login</button>
                 </form>
                 <p style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>
-                    Don't have an account? <a href="/" style={{ color: '#667eea', textDecoration: 'none', fontWeight: '600' }}>Sign up</a>
+                    Don't have an account? <Link to="/signup" style={{ color: '#667eea', textDecoration: 'none', fontWeight: '600' }}>Sign up</Link> 
                 </p>
             </div>
         </div>

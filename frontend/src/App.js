@@ -9,6 +9,7 @@ import ProtectedRoute from './pages/ProtectedRoute';
 
 function App() {
   const user = JSON.parse(localStorage.getItem('user'));
+
   return (
     <Router>
       <div className="main-container">
@@ -20,25 +21,24 @@ function App() {
               user ? (
                 <Navigate to={user.role === 'doctor' ? "/doctor-dashboard" : "/patient-dashboard"} />
               ) : (
-                <Signup />
-              )
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              user ? (
-                <Navigate to={user.role === 'doctor' ? "/doctor-dashboard" : "/patient-dashboard"} />
-              ) : (
                 <Login />
               )
             }
           />
-          <Route path="/" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-          <Route path="/patient-dashboard" element={<PatientDashboard />} />
 
+          {/* 2. SIGNUP PATH */}
+          <Route
+            path="/signup"
+            element={
+              user ? (
+                <Navigate to={user.role === 'doctor' ? "/doctor-dashboard" : "/patient-dashboard"} />
+              ) : (
+                <Signup />
+              )
+            }
+          />
+
+          {/* 3. DOCTOR DASHBOARD (Protected) */}
           <Route
             path="/doctor-dashboard"
             element={
@@ -48,7 +48,7 @@ function App() {
             }
           />
 
-          {/* Locked for Patients Only */}
+          {/* 4. PATIENT DASHBOARD (Protected) */}
           <Route
             path="/patient-dashboard"
             element={
@@ -58,12 +58,11 @@ function App() {
             }
           />
 
+          {/* Catch-all: Redirect any unknown URL to Home (Login) */}
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
     </Router>
-
-
   );
 }
-
 export default App;
