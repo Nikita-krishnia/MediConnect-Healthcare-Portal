@@ -196,6 +196,27 @@ app.put('/api/appointments/:id', async (req, res) => {
     }
 });
 
+// NEW ROUTE: Delete doctor availability (Remove Hour)
+app.delete('/api/availability/:id', (req, res) => {
+    const availabilityId = req.params.id;
+    console.log(">>>> DELETE AVAILABILITY REQUEST RECEIVED FOR ID:", availabilityId);
+
+    const sql = "DELETE FROM doctor_availability WHERE id = ?";
+    db.query(sql, [availabilityId], (err, result) => {
+        if (err) {
+            console.error("Database Error during availability deletion:", err);
+            return res.status(500).json(err);
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Availability record not found" });
+        }
+
+        console.log("Successfully deleted availability ID:", availabilityId);
+        res.status(200).json({ message: "Availability removed successfully" });
+    });
+});
+
 // --- PATIENT ROUTES ---
 app.get('/api/doctors', (req, res) => {
     db.query("SELECT id, full_name, specialty FROM doctors", (err, results) => {
