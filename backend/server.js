@@ -48,7 +48,7 @@ db.connect((err) => {
     console.log('✅ Connected to Aiven MySQL! 🚀');
 });
 
-// MOVE THIS HIGHER in server.js
+/// This route handles the Cancel button from the Patient Dashboard
 app.delete('/api/appointments/:id', (req, res) => {
     const appointmentId = req.params.id;
     console.log(">>>> DELETE REQUEST RECEIVED FOR ID:", appointmentId);
@@ -261,27 +261,7 @@ app.get('/api/appointments/patient/:patientId', async (req, res) => {
 });
 
 
-/// This route handles the Cancel button from the Patient Dashboard
-// app.delete('/api/appointments/:id', (req, res) => {
-//     const appointmentId = req.params.id;
-//     console.log(">>>> ATTEMPTING TO DELETE APPOINTMENT:", appointmentId);
 
-//     const sql = "DELETE FROM appointments WHERE id = ?";
-//     db.query(sql, [appointmentId], (err, result) => {
-//         if (err) {
-//             console.error("Database Delete Error:", err);
-//             return res.status(500).json({ error: err.message });
-//         }
-
-//         if (result.affectedRows === 0) {
-//             console.log("Appointment ID not found in DB:", appointmentId);
-//             return res.status(404).json({ message: "Appointment not found" });
-//         }
-
-//         console.log("Successfully deleted appointment ID:", appointmentId);
-//         res.status(200).json({ message: "Cancelled successfully" });
-//     });
-// });
 
 // Update the port to be dynamic for deployment
 const PORT = process.env.PORT || 5000;
