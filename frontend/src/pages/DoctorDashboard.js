@@ -141,25 +141,60 @@ const DoctorDashboard = () => {
                         </thead>
                         <tbody>
                             {appointments.map(app => {
-                                const appointmentDate = new Date(app.appointment_date);
-                                const today = new Date();
-                                today.setHours(0, 0, 0, 0);
-                                const isPastOrToday = appointmentDate <= today;
+                                // 1. Get today's date string (YYYY-MM-DD)
+                                const todayStr = new Date().toLocaleDateString('en-CA');
+
+                                // 2. Get appointment date string (YYYY-MM-DD)
+                                const appointmentDateStr = new Date(app.appointment_date).toLocaleDateString('en-CA');
+
+                                // 3. Simple comparison
+                                const isToday = appointmentDateStr === todayStr;
+                                const isPast = appointmentDateStr < todayStr;
+                                const isPastOrToday = isToday || isPast;
 
                                 return (
                                     <tr key={app.id}>
                                         <td>{app.patient_email}</td>
                                         <td>{new Date(app.appointment_date).toLocaleDateString()}</td>
-                                        <td><button className="view-btn" onClick={() => alert(`Patient History: ${app.medical_history || 'No history provided'}`)}>View History</button></td>
-                                        <td>{app.status === 'confirmed' && isPastOrToday ? (<textarea className="note-input" placeholder="Add visit summary..." onChange={(e) => setConsultationNotes({ ...consultationNotes, [app.id]: e.target.value })} />) : (<span className="saved-note">{app.consultation_notes || "N/A"}</span>)}</td>
                                         <td>
-                                            <StatusBadge status={app.status} />
-                                        </td>                                        <td>
+                                            <button className="view-btn" onClick={() => alert(`Patient History: ${app.medical_history || 'No history provided'}`)}>
+                                                View History
+                                            </button>
+                                        </td>
+
+                                        {/* Consultation Notes Cell */}
+                                        <td>
+                                            {app.status === 'confirmed' && isToday ? (
+                                                <textarea
+                                                    className="note-input"
+                                                    placeholder="Add visit summary..."
+                                                    onChange={(e) => setConsultationNotes({ ...consultationNotes, [app.id]: e.target.value })}
+                                                />
+                                            ) : (
+                                                <span className="saved-note">{app.consultation_notes || "N/A"}</span>
+                                            )}
+                                        </td>
+
+                                        <td><StatusBadge status={app.status} /></td>
+
+                                        <td>
                                             <div className="action-buttons">
-                                                {app.status === 'pending' && (<button className="confirm-button" onClick={() => updateStatus(app.id, 'confirmed')}>Confirm</button>)}
-                                                {app.status === 'confirmed' && isPastOrToday && (<button className="complete-button" onClick={() => updateStatus(app.id, 'completed')}>Mark Done</button>)}
-                                                {app.status === 'confirmed' && !isPastOrToday && (<span style={{ color: '#666', fontSize: '12px' }}>Upcoming</span>)}
-                                                {app.status === 'completed' && (<span style={{ color: 'gray', fontStyle: 'italic' }}>Finished</span>)}
+                                                {app.status === 'pending' && (
+                                                    <button className="confirm-button" onClick={() => updateStatus(app.id, 'confirmed')}>Confirm</button>
+                                                )}
+
+                                                {/* The "Mark Done" button will now show if it is Today or Past */}
+                                                {app.status === 'confirmed' && isPastOrToday && (
+                                                    <button className="complete-button" onClick={() => updateStatus(app.id, 'completed')}>Mark Done</button>
+                                                )}
+
+                                                {app.status === 'confirmed' && !isPastOrToday && (
+                                                    <span style={{ color: '#666', fontSize: '12px' }}>Upcoming</span>
+                                                )}
+
+                                                {app.status === 'completed' && (
+                                                    <span style={{ color: 'green', fontStyle: 'italic' }}>Finished</span>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

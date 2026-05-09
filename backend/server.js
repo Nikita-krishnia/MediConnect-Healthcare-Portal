@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const app = express();
 app.use(cors({
   origin: ["http://localhost:3000", "https://mediconnect-frontend-pi.vercel.app"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
 app.use(express.json());
@@ -167,13 +168,19 @@ app.get('/api/availability/:doctorId', (req, res) => {
 });
 
 // 5. Update Appointment Note/Status
-app.put('/api/appointments/:id', (req, res) => {
+app.put('/api/appointments/:id', async (req, res) => {
     const { id } = req.params;
-    const { status, consultation_notes } = req.body;
-    db.query("UPDATE appointments SET status = ?, consultation_notes = ? WHERE id = ?", [status, consultation_notes || "", id], (err) => {
-        if (err) return res.status(500).json(err);
-        res.status(200).send();
-    });
+    const { consultation_notes, status } = req.body;
+
+    try {
+        const sql = "UPDATE appointments SET consultation_notes = ?, status = ? WHERE id = ?";
+        await dbPromise.query(sql, [consultation_notes, status || 'completed', id]);
+        
+        res.status(200).json({ message: "Appointment updated successfully!" });
+    } catch (err) {
+        console.error("Update Error:", err.message);
+        res.status(500).json({ message: "Failed to save notes", details: err.message });
+    }
 });
 
 // --- PATIENT ROUTES ---
@@ -184,20 +191,38 @@ app.get('/api/doctors', (req, res) => {
     });
 });
 
-app.post('/api/appointments', (req, res) => {
+app.post('/api/appointments', async (req, res) => {
+    console.log(">>>> HIT APPOINTMENT ROUTE <<<<");
     const { patientId, doctorId, appointmentDate, medicalHistory } = req.body;
-    db.query("INSERT INTO appointments (patient_id, doctor_id, appointment_date, status, medical_history) VALUES (?, ?, ?, 'pending', ?)", 
-    [patientId, doctorId, appointmentDate, medicalHistory], (err) => {
-        if (err) return res.status(500).json(err);
-        res.status(201).send();
-    });
+
+    try {
+        // Use dbPromise for consistency and better error catching
+        const [result] = await dbPromise.query(
+            "INSERT INTO appointments (patient_id, doctor_id, appointment_date, status, medical_history) VALUES (?, ?, ?, 'pending', ?)", 
+            [patientId, doctorId, appointmentDate, medicalHistory || null]
+        );
+
+        console.log("Appointment Booked. ID:", result.insertId);
+        res.status(201).json({ message: "Appointment booked successfully!", id: result.insertId });
+
+    } catch (err) {
+        console.error("--- BOOKING ERROR ---");
+        console.error("SQL Message:", err.sqlMessage || err.message);
+        
+        res.status(500).json({ 
+            message: "Booking failed on our end.", 
+            details: err.message 
+        });
+    }
 });
 
-app.get('/api/appointments/patient/:patientId', (req, res) => {
+app.get('/api/appointments/patient/:patientId', async (req, res) => {
     const { patientId } = req.params;
+    console.log(`>>>> FETCHING HISTORY FOR PATIENT: ${patientId} <<<<`);
+
     const sql = `
         SELECT 
-            a.id, a.appointment_date, a.status, a.consultation_notes,
+            a.id, a.appointment_date, a.status, a.consultation_notes, a.medical_history,
             d.full_name AS doctor_name, d.specialty,
             avail.start_time,
             (SELECT COUNT(*) FROM appointments a2 
@@ -211,16 +236,37 @@ app.get('/api/appointments/patient/:patientId', (req, res) => {
         WHERE a.patient_id = ?
         ORDER BY a.appointment_date DESC`;
 
-    db.query(sql, [patientId], (err, results) => {
-        if (err) return res.status(500).json(err);
+    try {
+        const [results] = await dbPromise.query(sql, [patientId]);
+        console.log(`Found ${results.length} appointments.`);
         res.status(200).json(results);
-    });
+    } catch (err) {
+        console.error("--- HISTORY FETCH ERROR ---");
+        console.error("SQL Message:", err.sqlMessage || err.message);
+        res.status(500).json({ message: "Could not fetch history", details: err.message });
+    }
 });
 
-app.delete('/api/availability/:id', (req, res) => {
-    db.query("DELETE FROM doctor_availability WHERE id = ?", [req.params.id], (err) => {
-        if (err) return res.status(500).json(err);
-        res.status(200).send();
+
+/// This route handles the Cancel button from the Patient Dashboard
+app.delete('/api/appointments/:id', (req, res) => {
+    const appointmentId = req.params.id;
+    console.log(">>>> ATTEMPTING TO DELETE APPOINTMENT:", appointmentId);
+
+    const sql = "DELETE FROM appointments WHERE id = ?";
+    db.query(sql, [appointmentId], (err, result) => {
+        if (err) {
+            console.error("Database Delete Error:", err);
+            return res.status(500).json({ error: err.message });
+        }
+
+        if (result.affectedRows === 0) {
+            console.log("Appointment ID not found in DB:", appointmentId);
+            return res.status(404).json({ message: "Appointment not found" });
+        }
+
+        console.log("Successfully deleted appointment ID:", appointmentId);
+        res.status(200).json({ message: "Cancelled successfully" });
     });
 });
 

@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS appointments (
     FOREIGN KEY (doctor_id) REFERENCES doctors(id)
 );
 
+ALTER TABLE appointments ADD COLUMN medical_history TEXT;
+
+ALTER TABLE appointments ADD COLUMN consultation_notes TEXT;
+
 -- 5. Cleanup failed signup data
 -- Delete the email that was partially registered so you can try again
 DELETE FROM users WHERE email = 'dd@gmail.com';
