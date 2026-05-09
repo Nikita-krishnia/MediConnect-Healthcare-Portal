@@ -1,54 +1,102 @@
 require('dotenv').config(); // Load the .env file at the very top
-console.log("Database Host:", process.env.DB_HOST); // Should print 'localhost'
-console.log("Database Name:", process.env.DB_NAME); // Should print 'healthcare_system'
 const mysql = require('mysql2');
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "https://mediconnect-frontend-pi.vercel.app"],
+  credentials: true
+}));
 app.use(express.json());
-
-// USE ENVIRONMENT VARIABLES HERE
-const db = mysql.createConnection({
+// --- DATABASE CONNECTION ---
+// Robust configuration for Aiven MySQL
+const dbConfig = {
     host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS, 
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT,
+    user: process.env.DB_USER || 'avnadmin',
+    password: process.env.DB_PASSWORD || process.env.DB_PASS, 
+    database: process.env.DB_NAME || 'defaultdb',
+    port: process.env.DB_PORT || 25060, // Aiven standard port is 25060
     ssl: {
-        rejectUnauthorized: false // This allows the connection to Aiven's secure server
+        rejectUnauthorized: false
     }
-});
+};
+
+console.log("--- DB Config Check ---");
+console.log("Host:", dbConfig.host);
+console.log("User:", dbConfig.user);
+console.log("Database:", dbConfig.database);
+console.log("Port:", dbConfig.port);
+
+const db = mysql.createConnection(dbConfig);
+const dbPromise = db.promise();
 
 db.connect((err) => {
-    if (err) return console.error('Error:', err);
-    console.log('Connected to Database! 🚀');
+    if (err) {
+        console.error('❌ CRITICAL: Database Connection Failed!');
+        console.error('Error Code:', err.code);
+        console.error('Message:', err.message);
+
+        if (err.code === 'ENOTFOUND') {
+            console.error('\n💡 DEBUG HINT: Your hostname could not be found.');
+            console.error('Check your .env for typos. Is "nikitakrishnia" spelled correctly? (Aiven usually uses "nikitakrishna")');
+        }
+        return;
+    }
+    console.log('✅ Connected to Aiven MySQL! 🚀');
 });
 
 // --- AUTH ROUTES ---
 app.post('/api/signup', async (req, res) => {
+    // If you don't see this in your terminal, the frontend isn't hitting this server!
+    console.log(">>>> HIT SIGNUP ROUTE <<<<"); 
+    console.log("Body received:", req.body);
+
     const { email, password, role, fullName, specialty } = req.body;
+
+    if (!email || !password || !role) {
+        return res.status(400).json({ message: "Email, password, and role are required" });
+    }
+
     try {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        const sqlUser = "INSERT INTO users (email, password, role) VALUES (?, ?, ?)";
-        db.query(sqlUser, [email, hashedPassword, role], (err, result) => {
-            if (err) return res.status(500).json(err);
-            const userId = result.insertId;
-            if (role === 'doctor') {
-                const sqlDoctor = "INSERT INTO doctors (user_id, full_name, specialty) VALUES (?, ?, ?)";
-                db.query(sqlDoctor, [userId, fullName, specialty], (err2) => {
-                    if (err2) return res.status(500).json(err2);
-                    res.status(201).json({ message: "Success!" });
-                });
-            } else {
-                res.status(201).json({ message: "Success!" });
-            }
+
+        // 1. Insert User
+        const [userResult] = await dbPromise.query(
+            "INSERT INTO users (email, password, role) VALUES (?, ?, ?)",
+            [email, hashedPassword, role]
+        );
+
+        const userId = userResult.insertId;
+        console.log("User created ID:", userId);
+
+        // 2. Insert Doctor
+        if (role === 'doctor') {
+            if (!fullName) throw new Error("fullName is missing from request body");
+            
+            await dbPromise.query(
+                "INSERT INTO doctors (user_id, full_name, specialty) VALUES (?, ?, ?)",
+                [userId, fullName, specialty || null]
+            );
+            console.log("Doctor profile created.");
+        }
+
+        return res.status(201).json({ message: "Signup successful!" });
+
+    } catch (err) {
+        console.error("--- SIGNUP ERROR ---");
+        console.error("Message:", err.message);
+        if (err.sqlMessage) console.error("SQL Message:", err.sqlMessage);
+        
+        return res.status(500).json({ 
+            message: "Signup failed", 
+            details: err.message 
         });
-    } catch (e) { res.status(500).send(); }
+    }
 });
+
 
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
