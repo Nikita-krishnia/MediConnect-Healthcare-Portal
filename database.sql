@@ -1,3 +1,5 @@
+-- Active: 1777883861079@@mysql-32118427-nikitakrishnia08-7402.l.aivencloud.com@13520@mysql
+-- Active: 1777883861079@@mysql-32118427-nikitakrishnia08-7402.l.aivencloud.com@13520@defaultdb
 -- 1. Create the database
 CREATE DATABASE healthcare_system;
 USE healthcare_system;
