@@ -34,3 +34,21 @@ CREATE TABLE IF NOT EXISTS appointments (
 -- 5. Cleanup failed signup data
 -- Delete the email that was partially registered so you can try again
 DELETE FROM users WHERE email = 'dd@gmail.com';
+
+select * from users;
+
+
+-- Create the availability table if it doesn't exist
+CREATE TABLE IF NOT EXISTS doctor_availability (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    doctor_id INT,
+    day_of_week ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'),
+    start_time TIME,
+    end_time TIME,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
+);
+
+-- Optional: Add some dummy data so the GET request isn't empty
+-- Replace '1' with the actual doctor_id you just created (ID: 47)
+INSERT INTO doctor_availability (doctor_id, day_of_week, start_time, end_time) 
+VALUES (1, 'Monday', '09:00:00', '17:00:00');
