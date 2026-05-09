@@ -1,11 +1,8 @@
--- Active: 1777883861079@@mysql-32118427-nikitakrishnia08-7402.l.aivencloud.com@13520@mysql
 -- Active: 1777883861079@@mysql-32118427-nikitakrishnia08-7402.l.aivencloud.com@13520@defaultdb
--- 1. Create the database
-CREATE DATABASE healthcare_system;
-USE healthcare_system;
+USE defaultdb;
 
 -- 2. Create Users Table (Authentication)
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -14,7 +11,8 @@ CREATE TABLE users (
 );
 
 -- 3. Create Doctors Table (Specialty & Profile)
-CREATE TABLE doctors (
+-- This MUST be in defaultdb for your signup to work
+CREATE TABLE IF NOT EXISTS doctors (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     full_name VARCHAR(100) NOT NULL,
@@ -23,7 +21,7 @@ CREATE TABLE doctors (
 );
 
 -- 4. Create Appointments Table (Booking)
-CREATE TABLE appointments (
+CREATE TABLE IF NOT EXISTS appointments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     patient_id INT,
     doctor_id INT,
@@ -32,3 +30,7 @@ CREATE TABLE appointments (
     FOREIGN KEY (patient_id) REFERENCES users(id),
     FOREIGN KEY (doctor_id) REFERENCES doctors(id)
 );
+
+-- 5. Cleanup failed signup data
+-- Delete the email that was partially registered so you can try again
+DELETE FROM users WHERE email = 'dd@gmail.com';
