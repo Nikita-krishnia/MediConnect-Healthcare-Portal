@@ -3,12 +3,14 @@ const mysql = require('mysql2');
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const app = express();
 app.use(cors({
-  origin: ["http://localhost:3000", "https://mediconnect-frontend-pi.vercel.app"],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+    origin: ["http://localhost:3000", "https://mediconnect-frontend-pi.vercel.app"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
 }));
 app.use(express.json());
 // --- DATABASE CONNECTION ---
@@ -16,7 +18,7 @@ app.use(express.json());
 const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER || 'avnadmin',
-    password: process.env.DB_PASSWORD || process.env.DB_PASS, 
+    password: process.env.DB_PASSWORD || process.env.DB_PASS,
     database: process.env.DB_NAME || 'defaultdb',
     port: process.env.DB_PORT || 25060, // Aiven standard port is 25060
     ssl: {
@@ -48,8 +50,20 @@ db.connect((err) => {
     console.log('✅ Connected to Aiven MySQL! 🚀');
 });
 
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ message: 'Invalid or expired token' });
+        req.user = user;
+        next();
+    });
+}
+
 /// This route handles the Cancel button from the Patient Dashboard
-app.delete('/api/appointments/:id', (req, res) => {
+app.delete('/api/appointments/:id', authenticateToken,(req, res) => {
     const appointmentId = req.params.id;
     console.log(">>>> DELETE REQUEST RECEIVED FOR ID:", appointmentId);
 
@@ -64,7 +78,7 @@ app.delete('/api/appointments/:id', (req, res) => {
 // --- AUTH ROUTES ---
 app.post('/api/signup', async (req, res) => {
     // If you don't see this in your terminal, the frontend isn't hitting this server!
-    console.log(">>>> HIT SIGNUP ROUTE <<<<"); 
+    console.log(">>>> HIT SIGNUP ROUTE <<<<");
     console.log("Body received:", req.body);
 
     const { email, password, role, fullName, specialty } = req.body;
@@ -89,7 +103,7 @@ app.post('/api/signup', async (req, res) => {
         // 2. Insert Doctor
         if (role === 'doctor') {
             if (!fullName) throw new Error("fullName is missing from request body");
-            
+
             await dbPromise.query(
                 "INSERT INTO doctors (user_id, full_name, specialty) VALUES (?, ?, ?)",
                 [userId, fullName, specialty || null]
@@ -103,10 +117,10 @@ app.post('/api/signup', async (req, res) => {
         console.error("--- SIGNUP ERROR ---");
         console.error("Message:", err.message);
         if (err.sqlMessage) console.error("SQL Message:", err.sqlMessage);
-        
-        return res.status(500).json({ 
-            message: "Signup failed", 
-            details: err.message 
+
+        return res.status(500).json({
+            message: "Signup failed",
+            details: err.message
         });
     }
 });
@@ -118,7 +132,12 @@ app.post('/api/login', (req, res) => {
         if (err || result.length === 0) return res.status(404).json({ message: "User not found" });
         const user = result[0];
         if (await bcrypt.compare(password, user.password)) {
-            res.status(200).json({ user: { id: user.id, email: user.email, role: user.role } });
+            const token = jwt.sign(
+                { id: user.id, email: user.email, role: user.role },
+                JWT_SECRET,
+                { expiresIn: '2h' }
+            );
+            res.status(200).json({ token, user: { id: user.id, email: user.email, role: user.role } });
         } else {
             res.status(401).json({ message: "Wrong password" });
         }
@@ -128,7 +147,7 @@ app.post('/api/login', (req, res) => {
 // --- DOCTOR DASHBOARD ROUTES ---
 
 // 1. Fetch Appointments for Doctor
-app.get('/api/appointments/doctor/:userId', (req, res) => {
+app.get('/api/appointments/doctor/:userId', authenticateToken,(req, res) => {
     const { userId } = req.params;
     const sql = `
         SELECT a.id, a.appointment_date, a.status, a.medical_history, a.consultation_notes, u.email AS patient_email 
@@ -144,13 +163,13 @@ app.get('/api/appointments/doctor/:userId', (req, res) => {
 });
 
 // 2. Manage Availability (UPSERT Logic - Keep this one!)
-app.post('/api/availability', (req, res) => {
+app.post('/api/availability', authenticateToken,(req, res) => {
     const { doctorId, day, startTime, endTime } = req.body;
     const sql = `
         INSERT INTO doctor_availability (doctor_id, day_of_week, start_time, end_time) 
         VALUES ((SELECT id FROM doctors WHERE user_id = ?), ?, ?, ?)
         ON DUPLICATE KEY UPDATE start_time = VALUES(start_time), end_time = VALUES(end_time)`;
-    
+
     db.query(sql, [doctorId, day, startTime, endTime], (err, result) => {
         if (err) {
             console.error("SQL Error:", err);
@@ -161,7 +180,7 @@ app.post('/api/availability', (req, res) => {
 });
 
 // 3. Fetch Availability for Doctor (using User ID)
-app.get('/api/availability/user/:userId', (req, res) => {
+app.get('/api/availability/user/:userId', authenticateToken,(req, res) => {
     const { userId } = req.params;
     const sql = `SELECT * FROM doctor_availability WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = ?)`;
     db.query(sql, [userId], (err, results) => {
@@ -171,7 +190,7 @@ app.get('/api/availability/user/:userId', (req, res) => {
 });
 
 // 4. Fetch Availability for Patient (using Doctor PK)
-app.get('/api/availability/:doctorId', (req, res) => {
+app.get('/api/availability/:doctorId',authenticateToken, (req, res) => {
     const { doctorId } = req.params;
     const sql = `SELECT * FROM doctor_availability WHERE doctor_id = ?`;
     db.query(sql, [doctorId], (err, results) => {
@@ -181,14 +200,14 @@ app.get('/api/availability/:doctorId', (req, res) => {
 });
 
 // 5. Update Appointment Note/Status
-app.put('/api/appointments/:id', async (req, res) => {
+app.put('/api/appointments/:id',authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { consultation_notes, status } = req.body;
 
     try {
         const sql = "UPDATE appointments SET consultation_notes = ?, status = ? WHERE id = ?";
         await dbPromise.query(sql, [consultation_notes, status || 'completed', id]);
-        
+
         res.status(200).json({ message: "Appointment updated successfully!" });
     } catch (err) {
         console.error("Update Error:", err.message);
@@ -197,7 +216,7 @@ app.put('/api/appointments/:id', async (req, res) => {
 });
 
 // NEW ROUTE: Delete doctor availability (Remove Hour)
-app.delete('/api/availability/:id', (req, res) => {
+app.delete('/api/availability/:id', authenticateToken,(req, res) => {
     const availabilityId = req.params.id;
     console.log(">>>> DELETE AVAILABILITY REQUEST RECEIVED FOR ID:", availabilityId);
 
@@ -207,7 +226,7 @@ app.delete('/api/availability/:id', (req, res) => {
             console.error("Database Error during availability deletion:", err);
             return res.status(500).json(err);
         }
-        
+
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Availability record not found" });
         }
@@ -225,14 +244,14 @@ app.get('/api/doctors', (req, res) => {
     });
 });
 
-app.post('/api/appointments', async (req, res) => {
+app.post('/api/appointments',authenticateToken, async (req, res) => {
     console.log(">>>> HIT APPOINTMENT ROUTE <<<<");
     const { patientId, doctorId, appointmentDate, medicalHistory } = req.body;
 
     try {
         // Use dbPromise for consistency and better error catching
         const [result] = await dbPromise.query(
-            "INSERT INTO appointments (patient_id, doctor_id, appointment_date, status, medical_history) VALUES (?, ?, ?, 'pending', ?)", 
+            "INSERT INTO appointments (patient_id, doctor_id, appointment_date, status, medical_history) VALUES (?, ?, ?, 'pending', ?)",
             [patientId, doctorId, appointmentDate, medicalHistory || null]
         );
 
@@ -242,15 +261,15 @@ app.post('/api/appointments', async (req, res) => {
     } catch (err) {
         console.error("--- BOOKING ERROR ---");
         console.error("SQL Message:", err.sqlMessage || err.message);
-        
-        res.status(500).json({ 
-            message: "Booking failed on our end.", 
-            details: err.message 
+
+        res.status(500).json({
+            message: "Booking failed on our end.",
+            details: err.message
         });
     }
 });
 
-app.get('/api/appointments/patient/:patientId', async (req, res) => {
+app.get('/api/appointments/patient/:patientId',authenticateToken, async (req, res) => {
     const { patientId } = req.params;
     console.log(`>>>> FETCHING HISTORY FOR PATIENT: ${patientId} <<<<`);
 

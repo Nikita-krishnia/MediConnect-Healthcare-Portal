@@ -11,10 +11,12 @@ const Signup = () => {
     const [fullName, setFullName] = useState('');
     const [specialty, setSpecialty] = useState('');
 
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const handleSignup = async (e) => {
         e.preventDefault();
+        setLoading(true);
         try {
             // point this to Node.js server port
             const res = await API.post('/signup', {
@@ -24,11 +26,14 @@ const Signup = () => {
                 fullName,
                 specialty
             });
-            
+
             alert(res.data.message);
             navigate('/login'); // Redirect to login page after successful signup
         } catch (err) {
             alert(err.response?.data?.message || "Signup failed");
+        }
+        finally {
+            setLoading(false);
         }
     };
 
@@ -39,29 +44,29 @@ const Signup = () => {
                 <form className="signup-form" onSubmit={handleSignup}>
                     <div className="form-group">
                         <label className="form-label">Email:</label>
-                        <input 
+                        <input
                             className="signup-input"
-                            type="email" 
-                            required 
+                            type="email"
+                            required
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)} 
+                            onChange={(e) => setEmail(e.target.value)}
                         />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Password:</label>
-                        <input 
+                        <input
                             className="signup-input"
-                            type="password" 
-                            required 
+                            type="password"
+                            required
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)} 
+                            onChange={(e) => setPassword(e.target.value)}
                         />
                     </div>
                     <div className="form-group">
                         <label className="form-label">I am a:</label>
-                        <select 
+                        <select
                             className="signup-select"
-                            value={role} 
+                            value={role}
                             onChange={(e) => setRole(e.target.value)}
                         >
                             <option value="patient">Patient</option>
@@ -69,38 +74,40 @@ const Signup = () => {
                         </select>
                     </div>
 
-                        {role === 'doctor' && (
-                            <div className="doctor-fields">
-                                <div className="form-group">
-                                    <label className="form-label">Full Name:</label>
-                                    <input 
-                                        className="signup-input"
-                                        type="text" 
-                                        placeholder="Dr. John Doe" 
-                                        required 
-                                        value={fullName}
-                                        onChange={(e) => setFullName(e.target.value)} 
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Specialty:</label>
-                                    <input 
-                                        className="signup-input"
-                                        type="text" 
-                                        placeholder="e.g. Cardiologist" 
-                                        required 
-                                        value={specialty}
-                                        onChange={(e) => setSpecialty(e.target.value)} 
-                                    />
-                                </div>
+                    {role === 'doctor' && (
+                        <div className="doctor-fields">
+                            <div className="form-group">
+                                <label className="form-label">Full Name:</label>
+                                <input
+                                    className="signup-input"
+                                    type="text"
+                                    placeholder="Dr. John Doe"
+                                    required
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                />
                             </div>
-                        )}
-                        
-                        <button className="signup-button" type="submit">Register</button>
-                    </form>
-                </div>
+                            <div className="form-group">
+                                <label className="form-label">Specialty:</label>
+                                <input
+                                    className="signup-input"
+                                    type="text"
+                                    placeholder="e.g. Cardiologist"
+                                    required
+                                    value={specialty}
+                                    onChange={(e) => setSpecialty(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <button className="signup-button" type="submit" disabled={loading}>
+                        {loading ? "Registering..." : "Register"}
+                    </button>
+                </form>
             </div>
-        );
+        </div>
+    );
 };
 
 export default Signup;
